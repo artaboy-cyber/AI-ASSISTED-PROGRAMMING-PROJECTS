@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Column Buckling Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --surface2: #1a1e2a;
+    --border: #252a38;
+    --accent: #e8c547;
+    --accent2: #5b8dee;
+    --red: #e85d47;
+    --green: #47e8a0;
+    --text: #e4e8f0;
+    --muted: #6b7391;
+    --mono: 'DM Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.4;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: rgba(232,197,71,0.08);
+    border: 1px solid rgba(232,197,71,0.25);
+    padding: 0.25rem 0.6rem;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-top: 0.4rem;
+  }
+  h1 span { color: var(--accent); }
+
+  .subtitle {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.4rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem;
+  }
+
+  .card-title {
+    font-size: 0.65rem;
+    font-family: var(--mono);
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .field {
+    margin-bottom: 1rem;
+  }
+
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+    letter-spacing: 0.04em;
+  }
+
+  label .unit {
+    color: var(--accent);
+    font-size: 0.65rem;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.88rem;
+    padding: 0.55rem 0.75rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(91,141,238,0.12);
+  }
+
+  select option { background: var(--bg); }
+
+  .end-condition {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+    margin-top: 0.35rem;
+  }
+
+  .ec-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 0.5rem 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    line-height: 1.4;
+  }
+  .ec-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .ec-btn.active {
+    background: rgba(91,141,238,0.1);
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+  .ec-btn .k { font-size: 1rem; font-weight: 500; color: inherit; display: block; }
+
+  .btn-calc {
+    width: 100%;
+    background: var(--accent);
+    color: #0d0f14;
+    border: none;
+    border-radius: 4px;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    padding: 0.8rem;
+    cursor: pointer;
+    margin-top: 1.2rem;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn-calc:hover { opacity: 0.9; }
+  .btn-calc:active { transform: scale(0.99); }
+
+  .results-area {
+    margin-top: 1.5rem;
+    display: none;
+  }
+  .results-area.visible { display: block; }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 680px) { .result-grid { grid-template-columns: 1fr 1fr; } }
+
+  .result-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-box.highlight { border-color: var(--accent); }
+  .result-box.highlight::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+  .result-box.safe { border-color: var(--green); }
+  .result-box.safe::before { background: var(--green); }
+  .result-box.unsafe { border-color: var(--red); }
+  .result-box.unsafe::before { background: var(--red); }
+
+  .result-label {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .result-value {
+    font-family: var(--mono);
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .result-value .unit { font-size: 0.7rem; color: var(--muted); }
+
+  .result-box.highlight .result-value { color: var(--accent); }
+  .result-box.safe .result-value { color: var(--green); }
+  .result-box.unsafe .result-value { color: var(--red); }
+
+  .formula-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.2rem;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 2;
+  }
+
+  .formula-section strong { color: var(--accent2); font-weight: 500; }
+  .formula-section .eq { color: var(--text); }
+
+  .status-bar {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+    display: none;
+  }
+  .status-bar.visible { display: block; }
+  .status-bar.safe { background: rgba(71,232,160,0.08); border: 1px solid rgba(71,232,160,0.3); color: var(--green); }
+  .status-bar.unsafe { background: rgba(232,93,71,0.08); border: 1px solid rgba(232,93,71,0.3); color: var(--red); }
+  .status-bar.info { background: rgba(91,141,238,0.08); border: 1px solid rgba(91,141,238,0.3); color: var(--accent2); }
+
+  .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+  .section-full { grid-column: 1 / -1; }
+
+  .slenderness-bar-wrap {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    height: 8px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+  }
+  .slenderness-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+    background: var(--accent2);
+  }
+  .slenderness-bar.high { background: var(--red); }
+  .slenderness-bar.low { background: var(--green); }
+
+  .column-viz {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem 0;
+  }
+
+  svg.column-svg { overflow: visible; }
+
+  .info-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.6rem;
+  }
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 0.2rem 0.5rem;
+    color: var(--muted);
+  }
+  .tag span { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="container">
+
+  <header>
+    <div>
+      <div class="badge">Structural Engineering · Euler Theory</div>
+      <h1>Column <span>Buckling</span></h1>
+      <p class="subtitle">Critical load · Slenderness ratio · Safety factor analysis</p>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- Material & Geometry -->
+    <div class="card">
+      <div class="card-title">01 — Material Properties</div>
+
+      <div class="field">
+        <label>Material <span class="unit">preset</span></label>
+        <select id="material" onchange="applyMaterial()">
+          <option value="custom">Custom</option>
+          <option value="steel">Structural Steel (A36)</option>
+          <option value="ss">Stainless Steel (304)</option>
+          <option value="al6061">Aluminum 6061-T6</option>
+          <option value="al2024">Aluminum 2024-T3</option>
+          <option value="titanium">Titanium Ti-6Al-4V</option>
+          <option value="concrete">Concrete (C30)</option>
+          <option value="wood">Douglas Fir (Wood)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Elastic Modulus E <span class="unit">[GPa]</span></label>
+        <input type="number" id="E" value="200" min="0.001" step="1">
+      </div>
+
+      <div class="field">
+        <label>Yield Strength σ<sub>y</sub> <span class="unit">[MPa]</span></label>
+        <input type="number" id="Fy" value="250" min="1" step="1">
+      </div>
+    </div>
+
+    <!-- Cross Section -->
+    <div class="card">
+      <div class="card-title">02 — Cross Section</div>
+
+      <div class="field">
+        <label>Section Type</label>
+        <select id="sectionType" onchange="renderSectionFields()">
+          <option value="solid_circle">Solid Circle</option>
+          <option value="hollow_circle">Hollow Circle (Pipe)</option>
+          <option value="solid_rect">Solid Rectangle</option>
+          <option value="hollow_rect">Hollow Rectangle / Box</option>
+          <option value="wide_flange">Wide-Flange / I-Section (approx.)</option>
+          <option value="custom_section">Custom (A, I)</option>
+        </select>
+      </div>
+
+      <div id="sectionFields"></div>
+    </div>
+
+    <!-- Column Parameters -->
+    <div class="card">
+      <div class="card-title">03 — Column Geometry</div>
+
+      <div class="field">
+        <label>Length L <span class="unit">[m]</span></label>
+        <input type="number" id="L" value="3" min="0.01" step="0.1">
+      </div>
+
+      <div class="field">
+        <label>End Condition (Effective Length Factor K)</label>
+        <div class="end-condition">
+          <button class="ec-btn active" onclick="setK(1.0, this)"><span class="k">K = 1.0</span>Pinned–Pinned</button>
+          <button class="ec-btn" onclick="setK(0.5, this)"><span class="k">K = 0.5</span>Fixed–Fixed</button>
+          <button class="ec-btn" onclick="setK(0.7, this)"><span class="k">K = 0.7</span>Fixed–Pinned</button>
+          <button class="ec-btn" onclick="setK(2.0, this)"><span class="k">K = 2.0</span>Fixed–Free</button>
+          <button class="ec-btn" onclick="setK(1.2, this)"><span class="k">K = 1.2</span>Fixed–Fixed*</button>
+          <button class="ec-btn" id="kCustomBtn" onclick="useCustomK()"><span class="k">Custom</span>Enter K below</button>
+        </div>
+      </div>
+
+      <div class="field" id="customKField" style="display:none">
+        <label>Custom K value</label>
+        <input type="number" id="K_custom" value="1.0" min="0.01" step="0.05">
+      </div>
+    </div>
+
+    <!-- Applied Load & Safety -->
+    <div class="card">
+      <div class="card-title">04 — Load & Safety</div>
+
+      <div class="field">
+        <label>Applied Axial Load P <span class="unit">[kN]</span></label>
+        <input type="number" id="P_applied" value="0" min="0" step="1" placeholder="0 = no check">
+      </div>
+
+      <div class="field">
+        <label>Desired Safety Factor FS</label>
+        <input type="number" id="FS" value="3" min="1" step="0.1">
+      </div>
+
+      <div class="field">
+        <label>Eccentricity e <span class="unit">[mm]  (0 = concentric)</span></label>
+        <input type="number" id="ecc" value="0" min="0" step="1" placeholder="0">
+      </div>
+    </div>
+
+  </div>
+
+  <button class="btn-calc" onclick="calculate()">▶ CALCULATE BUCKLING</button>
+
+  <!-- Results -->
+  <div class="results-area" id="results">
+    <div class="divider"></div>
+    <div class="card-title" style="margin-bottom:1rem">Results</div>
+
+    <div class="result-grid" id="resultGrid"></div>
+
+    <div class="status-bar" id="statusBar"></div>
+
+    <div class="divider"></div>
+
+    <div class="grid">
+      <div>
+        <div class="card-title" style="margin-bottom:1rem">Slenderness Ratio</div>
+        <div class="result-box" style="padding:1.2rem">
+          <div class="result-label">KL/r = Effective Slenderness</div>
+          <div class="result-value" id="srVal">—</div>
+          <div style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);margin-top:0.5rem" id="srLabel">—</div>
+          <div class="slenderness-bar-wrap"><div class="slenderness-bar" id="srBar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card-title" style="margin-bottom:1rem">Formula Used</div>
+        <div class="formula-section" id="formulaBox">—</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let K = 1.0;
+
+const materials = {
+  steel:    { E: 200, Fy: 250 },
+  ss:       { E: 193, Fy: 210 },
+  al6061:   { E: 68.9, Fy: 276 },
+  al2024:   { E: 73.1, Fy: 345 },
+  titanium: { E: 113.8, Fy: 880 },
+  concrete: { E: 30, Fy: 30 },
+  wood:     { E: 12, Fy: 50 },
+};
+
+function applyMaterial() {
+  const sel = document.getElementById('material').value;
+  if (sel === 'custom') return;
+  const m = materials[sel];
+  document.getElementById('E').value = m.E;
+  document.getElementById('Fy').value = m.Fy;
+}
+
+// ─── End Conditions ──────────────────────────────────────
+function setK(val, btn) {
+  K = val;
+  document.querySelectorAll('.ec-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('customKField').style.display = 'none';
+  document.getElementById('material').dispatchEvent(new Event('change'));
+}
+
+function useCustomK() {
+  document.querySelectorAll('.ec-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('kCustomBtn').classList.add('active');
+  document.getElementById('customKField').style.display = 'block';
+}
+
+// ─── Section Fields ───────────────────────────────────────
+function renderSectionFields() {
+  const type = document.getElementById('sectionType').value;
+  const div = document.getElementById('sectionFields');
+  const tmpl = {
+    solid_circle: `
+      <div class="field"><label>Diameter d <span class="unit">[mm]</span></label><input type="number" id="d" value="100" min="1" step="1"></div>`,
+    hollow_circle: `
+      <div class="field"><label>Outer Diameter D <span class="unit">[mm]</span></label><input type="number" id="D_o" value="100" min="1" step="1"></div>
+      <div class="field"><label>Inner Diameter d <span class="unit">[mm]</span></label><input type="number" id="D_i" value="80" min="1" step="1"></div>`,
+    solid_rect: `
+      <div class="field"><label>Width b <span class="unit">[mm]</span></label><input type="number" id="b" value="100" min="1" step="1"></div>
+      <div class="field"><label>Height h <span class="unit">[mm]</span></label><input type="number" id="h" value="100" min="1" step="1"></div>`,
+    hollow_rect: `
+      <div class="field"><label>Outer Width B <span class="unit">[mm]</span></label><input type="number" id="B_o" value="100" min="1" step="1"></div>
+      <div class="field"><label>Outer Height H <span class="unit">[mm]</span></label><input type="number" id="H_o" value="100" min="1" step="1"></div>
+      <div class="field"><label>Wall Thickness t <span class="unit">[mm]</span></label><input type="number" id="t_wall" value="10" min="1" step="1"></div>`,
+    wide_flange: `
+      <div class="field"><label>Total Height d <span class="unit">[mm]</span></label><input type="number" id="wf_d" value="200" min="1" step="1"></div>
+      <div class="field"><label>Flange Width b_f <span class="unit">[mm]</span></label><input type="number" id="wf_bf" value="100" min="1" step="1"></div>
+      <div class="field"><label>Flange Thickness t_f <span class="unit">[mm]</span></label><input type="number" id="wf_tf" value="12" min="1" step="1"></div>
+      <div class="field"><label>Web Thickness t_w <span class="unit">[mm]</span></label><input type="number" id="wf_tw" value="8" min="1" step="1"></div>`,
+    custom_section: `
+      <div class="field"><label>Area A <span class="unit">[mm²]</span></label><input type="number" id="A_custom" value="5000" min="1" step="1"></div>
+      <div class="field"><label>Moment of Inertia I <span class="unit">[mm⁴]</span></label><input type="number" id="I_custom" value="4166667" min="1" step="1"></div>`,
+  };
+  div.innerHTML = tmpl[type] || '';
+}
+
+renderSectionFields();
+
+// ─── Section Properties Calculator ───────────────────────
+function getSectionProps() {
+  const type = document.getElementById('sectionType').value;
+  let A, I, r_gyr, c; // c = distance from centroid to extreme fiber (mm)
+  const g = v => parseFloat(document.getElementById(v)?.value || 0);
+
+  if (type === 'solid_circle') {
+    const d = g('d');
+    A = Math.PI * d * d / 4;
+    I = Math.PI * d * d * d * d / 64;
+    c = d / 2;
+  } else if (type === 'hollow_circle') {
+    const Do = g('D_o'), Di = g('D_i');
+    A = Math.PI * (Do*Do - Di*Di) / 4;
+    I = Math.PI * (Math.pow(Do,4) - Math.pow(Di,4)) / 64;
+    c = Do / 2;
+  } else if (type === 'solid_rect') {
+    const b = g('b'), h = g('h');
+    A = b * h;
+    I = Math.min(b * Math.pow(h,3) / 12, h * Math.pow(b,3) / 12); // weak axis governs
+    c = Math.min(b,h) / 2;
+  } else if (type === 'hollow_rect') {
+    const B = g('B_o'), H = g('H_o'), t = g('t_wall');
+    const Bi = B - 2*t, Hi = H - 2*t;
+    A = B*H - Bi*Hi;
+    I = Math.min(
+      (B * Math.pow(H,3) - Bi * Math.pow(Hi,3)) / 12,
+      (H * Math.pow(B,3) - Hi * Math.pow(Bi,3)) / 12
+    );
+    c = Math.min(B,H) / 2;
+  } else if (type === 'wide_flange') {
+    const d = g('wf_d'), bf = g('wf_bf'), tf = g('wf_tf'), tw = g('wf_tw');
+    const hw = d - 2*tf;
+    A = 2*bf*tf + hw*tw;
+    const Ix = (bf * Math.pow(d,3) - (bf-tw) * Math.pow(hw,3)) / 12;
+    const Iy = (2*tf * Math.pow(bf,3) + hw * Math.pow(tw,3)) / 12;
+    I = Math.min(Ix, Iy); // weak axis governs
+    c = Math.min(d, bf) / 2;
+  } else {
+    A = g('A_custom');
+    I = g('I_custom');
+    c = Math.sqrt(I / A); // approx
+  }
+
+  r_gyr = Math.sqrt(I / A);
+  return { A, I, r_gyr, c };
+}
+
+// ─── Main Calculation ─────────────────────────────────────
+function calculate() {
+  // Read inputs
+  const E_GPa  = parseFloat(document.getElementById('E').value);   // GPa
+  const Fy_MPa = parseFloat(document.getElementById('Fy').value);  // MPa
+  const L_m    = parseFloat(document.getElementById('L').value);   // m
+  const FS     = parseFloat(document.getElementById('FS').value);
+  const P_app  = parseFloat(document.getElementById('P_applied').value) || 0; // kN
+  const ecc_mm = parseFloat(document.getElementById('ecc').value) || 0; // mm
+
+  // Get K
+  if (document.getElementById('customKField').style.display !== 'none') {
+    K = parseFloat(document.getElementById('K_custom').value) || 1.0;
+  }
+
+  const E = E_GPa * 1e9;    // Pa
+  const Fy = Fy_MPa * 1e6;  // Pa
+  const L = L_m;             // m
+
+  const { A, I, r_gyr, c } = getSectionProps();
+  const A_m2 = A * 1e-6;    // m²
+  const I_m4 = I * 1e-12;   // m⁴
+  const r_m  = r_gyr * 1e-3;// m
+  const c_m  = c * 1e-3;    // m
+  const e_m  = ecc_mm * 1e-3;
+
+  const KL = K * L;         // effective length (m)
+  const SR = KL / r_m;      // slenderness ratio
+
+  // Euler buckling load (N)
+  const P_cr_euler = (Math.PI * Math.PI * E * I_m4) / (KL * KL);
+
+  // Critical stress (Pa)
+  const sigma_cr = P_cr_euler / A_m2;
+
+  // Transition slenderness ratio (Cc)
+  const Cc = Math.sqrt(2 * Math.PI * Math.PI * E / Fy);
+
+  let P_cr_used, formula_desc;
+  if (SR <= Cc) {
+    // Inelastic / Johnson formula
+    const sigma_j = Fy * (1 - (SR * SR) / (2 * Cc * Cc));
+    P_cr_used = sigma_j * A_m2;
+    formula_desc = `<strong>Johnson / Inelastic (SR ≤ Cc=${fmt1(Cc)})</strong><br>
+      <span class="eq">σ_cr = Fy·[1 − (KL/r)²/(2Cc²)]</span><br>
+      <span class="eq">σ_cr = ${fmt2(sigma_j/1e6)} MPa</span>`;
+  } else {
+    // Euler
+    P_cr_used = P_cr_euler;
+    formula_desc = `<strong>Euler / Elastic (SR > Cc=${fmt1(Cc)})</strong><br>
+      <span class="eq">P_cr = π²·E·I / (KL)²</span><br>
+      <span class="eq">σ_cr = π²·E / (KL/r)²</span>`;
+  }
+
+  const P_allow = P_cr_used / FS;
+
+  // Eccentric loading (secant formula for max stress)
+  let sigma_max_ecc = null;
+  if (ecc_mm > 0) {
+    const arg = (KL / (2 * r_m)) * Math.sqrt(P_app * 1000 / (E * A_m2));
+    const secVal = 1 / Math.cos(arg);
+    sigma_max_ecc = (P_app * 1000 / A_m2) * (1 + (e_m * c_m / (r_m * r_m)) * secVal);
+  }
+
+  // ─── Display results ───
+  document.getElementById('results').classList.add('visible');
+
+  const P_cr_kN  = P_cr_used / 1000;
+  const Pa_kN    = P_allow / 1000;
+  const sr_pct   = Math.min(SR / 300 * 100, 100);
+  const srClass  = SR > 200 ? 'high' : SR < 80 ? 'low' : '';
+
+  const boxes = [
+    { label: 'Critical Load P_cr', val: fmt1(P_cr_kN), unit: 'kN', cls: 'highlight' },
+    { label: 'Allowable Load P_allow', val: fmt1(Pa_kN), unit: 'kN', cls: '' },
+    { label: 'Critical Stress σ_cr', val: fmt2(sigma_cr/1e6), unit: 'MPa', cls: '' },
+    { label: 'Area A', val: fmt2(A), unit: 'mm²', cls: '' },
+    { label: 'Mom. Inertia I', val: fmtE(I), unit: 'mm⁴', cls: '' },
+    { label: 'Radius of Gyration r', val: fmt2(r_gyr), unit: 'mm', cls: '' },
+  ];
+
+  let html = boxes.map(b => `
+    <div class="result-box ${b.cls}">
+      <div class="result-label">${b.label}</div>
+      <div class="result-value">${b.val} <span class="unit">${b.unit}</span></div>
+    </div>`).join('');
+
+  // Eccentric stress box
+  if (sigma_max_ecc !== null) {
+    const safe = sigma_max_ecc < Fy;
+    html += `<div class="result-box ${safe?'safe':'unsafe'}">
+      <div class="result-label">Max Stress (Eccentric)</div>
+      <div class="result-value">${fmt2(sigma_max_ecc/1e6)} <span class="unit">MPa</span></div>
+    </div>`;
+  }
+
+  // If applied load given
+  if (P_app > 0) {
+    const isSafe = P_app <= Pa_kN;
+    const ratio  = P_app / Pa_kN;
+    html += `<div class="result-box ${isSafe?'safe':'unsafe'}">
+      <div class="result-label">P_applied / P_allow</div>
+      <div class="result-value">${fmt2(ratio)}</div>
+    </div>`;
+  }
+
+  document.getElementById('resultGrid').innerHTML = html;
+
+  // Status bar
+  const sb = document.getElementById('statusBar');
+  sb.className = 'status-bar visible';
+  if (P_app > 0) {
+    const isSafe = P_app <= Pa_kN;
+    const actual_FS = P_cr_kN / P_app;
+    sb.classList.add(isSafe ? 'safe' : 'unsafe');
+    sb.textContent = isSafe
+      ? `✓ SAFE — Applied load ${P_app} kN < Allowable ${fmt1(Pa_kN)} kN  |  Actual FS = ${fmt2(actual_FS)}`
+      : `✗ UNSAFE — Applied load ${P_app} kN exceeds allowable ${fmt1(Pa_kN)} kN  |  Actual FS = ${fmt2(actual_FS)} < ${FS}`;
+  } else {
+    sb.classList.add('info');
+    sb.textContent = `ℹ No applied load entered — showing critical (Euler/Johnson) and allowable loads only.`;
+  }
+
+  // Slenderness
+  document.getElementById('srVal').textContent = fmt1(SR);
+  const srLbl = SR > 200 ? '⚠ Very slender — governs by elastic buckling' :
+                SR > Cc  ? 'Elastic (Euler) regime' :
+                            'Inelastic (Johnson) regime';
+  document.getElementById('srLabel').textContent = srLbl;
+  const bar = document.getElementById('srBar');
+  bar.style.width = sr_pct + '%';
+  bar.className = 'slenderness-bar ' + srClass;
+
+  // Formula
+  document.getElementById('formulaBox').innerHTML =
+    `<strong>Effective Length</strong><br>
+    <span class="eq">Le = K·L = ${fmt2(K)}·${L} = ${fmt2(KL)} m</span><br><br>
+    <strong>Slenderness Ratio</strong><br>
+    <span class="eq">KL/r = ${fmt2(KL)}/${fmt4(r_m)} = ${fmt1(SR)}</span><br><br>
+    <strong>Transition Cc</strong><br>
+    <span class="eq">Cc = √(2π²E/Fy) = ${fmt1(Cc)}</span><br><br>
+    ${formula_desc}`;
+}
+
+// ─── Formatting helpers ───────────────────────────────────
+const fmt1 = n => isFinite(n) ? n.toFixed(1) : '—';
+const fmt2 = n => isFinite(n) ? n.toFixed(2) : '—';
+const fmt4 = n => isFinite(n) ? n.toFixed(4) : '—';
+const fmtE = n => {
+  if (!isFinite(n)) return '—';
+  if (n >= 1e9) return (n/1e9).toFixed(2) + '×10⁹';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + '×10⁶';
+  if (n >= 1e3) return (n/1e3).toFixed(2) + '×10³';
+  return n.toFixed(0);
+};
+</script>
+</body>
+</html>
